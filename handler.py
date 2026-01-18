@@ -1,41 +1,37 @@
-import runpod
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from analysis.circuit_solver import analyze_circuit
+from analysis.thermal_model import thermal_analysis
 
-# 1. PRE-LOAD MODELS (This runs once when the worker starts)
-# With 48GB VRAM, you can load a 70B parameter model in 4-bit (approx. 40GB)
-MODEL_NAME = "your-engineering-model-path"
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForCausalLM.from_pretrained(
-    MODEL_NAME, 
-    device_map="auto", 
-    load_in_4bit=True # Crucial for fitting large models in 48GB
-)
-
-def handler(job):
+def handler(event):
     """
-    Main Logic for Phoenix AI CATA
+    Phoenix AI CATA - Circuit and Thermal Analysis Handler
+    Deterministic, math-driven analysis (no LLM required)
     """
-    job_input = job["input"]
-    netlist = job_input.get("netlist", "")
-    analysis_type = job_input.get("analysis_type", "audit")
 
-    # 2. RUN ANALYSIS
-    # Use the pre-loaded 'model' to perform high-fidelity circuit auditing
-    # Your 25 years of electronics expertise goes into this prompt logic
-    prompt = f"Analyze this circuit netlist for failure points: {netlist}"
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-    
-    with torch.no_grad():
-        output_tokens = model.generate(**inputs, max_new_tokens=500)
-    
-    report = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
+    # 1. Validate input
+    circuit = event.get("circuit")
+    if not circuit:
+        return {
+            "status": "error",
+            "message": "No circuit data provided. Expected JSON describing components and connections."
+        }
 
-    return {
-        "status": "success",
-        "company": "Phoenix Poly Design",
-        "analysis": report
-    }
+    try:
+        # 2. Run electrical analysis
+        electrical_results = analyze_circuit(circuit)
 
-# 3. START THE SERVERLESS WORKER
-runpod.serverless.start({"handler": handler})
+        # 3. Run thermal analysis
+        thermal_results = thermal_analysis(electrical_results)
+
+        # 4. Return structured output
+        return {
+            "status": "completed",
+            "electrical_analysis": electrical_results,
+            "thermal_analysis": thermal_results
+        }
+
+    except Exception as e:
+        # 5. Safe error handling
+        return {
+            "status": "error",
+            "message": str(e)
+        }
