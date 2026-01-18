@@ -1,0 +1,7 @@
+{
+  "title": "Phoenix AI CATA",
+  "description": "Professional Circuit and Thermal Analysis Suite. Requires 48GB VRAM for high-fidelity simulations.",
+  "category": "Engineering",
+  "min_vram": 48,
+  "gpu_types": ["RTX A6000", "A40", "6000 Ada"]
+}
